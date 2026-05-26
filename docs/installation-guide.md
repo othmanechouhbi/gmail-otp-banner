@@ -1,31 +1,8 @@
-# Gmail OTP Banner
+# Gmail OTP Banner Installation Guide
 
-Gmail OTP Banner is an open-source Chrome extension that helps you copy recent verification codes from Gmail faster.
+Gmail OTP Banner is not published on the Chrome Web Store yet. Clone the repository from GitHub and install the extension manually using Chrome Developer Mode.
 
-## Project Status
-
-Gmail OTP Banner is currently shared as an open-source project for local installation.
-
-It is not available on the Chrome Web Store yet. Clone the repository from GitHub and install the extension manually using Chrome Developer Mode. Each user must create their own Google Cloud project and OAuth Client ID.
-
-## What The Extension Does
-
-- Connects to Gmail using Google OAuth.
-- Detects new verification codes received after you connect an account.
-- Displays the newest valid OTP in a small banner.
-- Runs locally in the browser.
-- Uses Gmail read-only access and never asks for your Gmail password.
-
-## Requirements
-
-- Google Chrome.
-- Google account / Gmail account.
-- Git, or the ability to download the repository as a ZIP file from GitHub.
-- Google Cloud project.
-- Gmail API enabled.
-- OAuth Client ID for Chrome Extension.
-
-## Manual Installation Guide
+Each user must create their own Google Cloud project and OAuth Client ID.
 
 ## 1. Clone the repository
 
@@ -50,7 +27,7 @@ If you do not have Git, click **Code -> Download ZIP** on GitHub, extract the ZI
 6. Chrome will load the extension.
 7. Copy the generated Extension ID.
 
-Important: select the `extension` folder, not the full repository root folder.
+Important: the user must select the `extension` folder, not the full repository root folder.
 
 The Extension ID will look like this:
 
@@ -58,20 +35,20 @@ The Extension ID will look like this:
 abcdefghijklmnopabcdefghijklmnop
 ```
 
-Keep this ID because it will be used in Google Cloud.
+The user must keep this ID because it will be used in Google Cloud.
 
 ## 3. Create or access Google Cloud Console
 
 1. Go to `https://console.cloud.google.com/`.
 2. Sign in with your Google/Gmail account.
 3. If you do not have a Google Cloud account yet, create one using your Gmail account.
-4. Accept the Google Cloud terms if Google asks you to.
+4. You may need to accept Google Cloud terms.
 
 ## 4. Create a Google Cloud project
 
 1. At the top of Google Cloud Console, click the project selector.
 2. Click **New Project**.
-3. Use a project name such as `Gmail OTP Banner` or `OTP Extension`.
+3. For the project name, use `Gmail OTP Banner` or `OTP Extension`.
 4. For **Organization**, choose **No organization** if you are using a personal account.
 5. Click **Create**.
 6. Wait until the project is created.
@@ -130,13 +107,15 @@ xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
 
 1. Open the project folder.
 2. Open `extension/manifest.json`.
-3. Find this line:
+3. Find:
 
 ```json
 "client_id": "YOUR_CHROME_EXTENSION_OAUTH_CLIENT_ID"
 ```
 
-Replace it with your own Client ID:
+Replace it with your own Client ID.
+
+Example:
 
 ```json
 "client_id": "1234567890-example.apps.googleusercontent.com"
@@ -167,21 +146,6 @@ Important behavior:
 - The extension does not show old codes received before connection.
 - It only shows new OTP codes received after connection.
 - The banner automatically disappears after a few seconds.
-
-## Google Cloud Setup Paths
-
-- `Google Cloud Console -> APIs & Services -> Library -> Gmail API -> Enable`
-- `Google Cloud Console -> Google Auth Platform -> Branding`
-- `Google Cloud Console -> Google Auth Platform -> Audience -> Test users`
-- `Google Cloud Console -> Google Auth Platform -> Clients -> Create Client -> Chrome Extension`
-
-## Important Note About Extension ID
-
-The local Chrome Extension ID must match the Chrome Extension ID used in your Google OAuth Client configuration.
-
-If you remove the extension and load it again, Chrome may generate a different Extension ID. If the ID changes, Google OAuth may fail with `redirect_uri_mismatch`.
-
-To avoid this, keep the same extension loaded in Chrome and use **Reload** from `chrome://extensions/` after editing files instead of removing and loading the extension again.
 
 ## Troubleshooting
 
@@ -262,20 +226,3 @@ Gmail OTP Banner:
 - Processes OTP detection locally in the browser.
 - Does not send Gmail content to any external server.
 - Does not sell or share Gmail data.
-
-## Future Chrome Web Store Publication
-
-Chrome Web Store publication may be added in the future, but currently users must install Gmail OTP Banner manually from the source code.
-
-## More Documentation
-
-- [Installation Guide](docs/installation-guide.md)
-- [Google Cloud Setup](docs/google-cloud-setup.md)
-- [OAuth Verification Guide](docs/oauth-verification-guide.md)
-- [Privacy Policy](docs/privacy-policy.md)
-- [Terms Of Service](docs/terms-of-service.md)
-- [Support](docs/support.md)
-
-## License
-
-MIT License. See [LICENSE](LICENSE).
