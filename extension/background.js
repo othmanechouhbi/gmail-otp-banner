@@ -124,7 +124,7 @@ async function connectAccount() {
 
     await saveAccounts(accounts);
     await chrome.storage.local.set({ lastError: null });
-    console.log("[OAuth] account connected", { email });
+    console.log("[Auth] account connected", { email });
     return { ok: true, email };
   } catch (error) {
     return setError(normalizeError(error));
@@ -481,7 +481,6 @@ function scoreCandidate(candidate, keyword, distance, phrase) {
 function buildRejectTerms({ subject, sender, recipient }) {
   const terms = new Set([
     "BANNER",
-    "OTHMANE",
     "EXPIRE",
     "EXPIRES",
     "GMAIL",
