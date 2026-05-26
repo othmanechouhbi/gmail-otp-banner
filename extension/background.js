@@ -809,7 +809,7 @@ function launchOAuthAccountChooser() {
       return;
     }
 
-    const redirectUri = chrome.identity.getRedirectURL("oauth2");
+    const redirectUri = chrome.identity.getRedirectURL();
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     authUrl.searchParams.set("client_id", clientId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
@@ -1079,6 +1079,10 @@ function normalizeError(error) {
 
   if (message.toLowerCase().includes("invalid_request")) {
     return "OAuth configuration error. Please check the extension OAuth flow.";
+  }
+
+  if (message.toLowerCase().includes("redirect_uri_mismatch")) {
+    return "OAuth redirect mismatch. Make sure the Google Cloud OAuth Client uses the current Chrome Extension ID.";
   }
 
   return message;
