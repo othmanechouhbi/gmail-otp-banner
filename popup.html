@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gmail OTP Banner</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="popup">
+      <header class="popup__header">
+        <div>
+          <h1>Gmail OTP Banner</h1>
+          <p id="status" class="status-text">No account connected</p>
+        </div>
+        <span id="accountCount" class="status status--offline">0/4</span>
+      </header>
+
+      <section class="actions">
+        <button id="loginButton" type="button">Connect an account</button>
+        <button id="refreshButton" type="button" class="button-ghost">Refresh</button>
+        <button id="clearHistoryButton" type="button" class="button-ghost">Clear history</button>
+      </section>
+
+      <section class="accounts-section">
+        <h2>Connected accounts</h2>
+        <div id="accountsList" class="accounts-list"></div>
+      </section>
+
+      <p id="errorMessage" class="error" hidden></p>
+    </main>
+
+    <template id="accountTemplate">
+      <article class="account-card">
+        <div class="account-card__top">
+          <strong class="account-card__email"></strong>
+          <button class="account-card__logout" type="button">Disconnect</button>
+        </div>
+        <div class="account-card__code">
+          <span>Last valid OTP</span>
+          <strong></strong>
+        </div>
+        <div class="account-card__meta"></div>
+      </article>
+    </template>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

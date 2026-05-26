@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Gmail OTP Banner",
+  "version": "1.0.0",
+  "description": "Detecte les codes OTP recents dans Gmail et les affiche dans une banniere Chrome.",
+  "permissions": [
+    "identity",
+    "storage",
+    "notifications",
+    "scripting",
+    "activeTab",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://www.googleapis.com/*",
+    "https://*/*",
+    "http://*/*"
+  ],
+  "oauth2": {
+    "client_id": "964746287291-s6h959jaudksjku5htau2obfg9jfsek0.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.readonly"
+    ]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Gmail OTP Banner",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}
