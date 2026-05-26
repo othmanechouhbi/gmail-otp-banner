@@ -1,10 +1,8 @@
 const statusEl = document.getElementById("status");
-const accountCountEl = document.getElementById("accountCount");
 const accountSelectorEl = document.getElementById("accountSelector");
 const accountsListEl = document.getElementById("accountsList");
 const accountTemplate = document.getElementById("accountTemplate");
 const errorMessageEl = document.getElementById("errorMessage");
-const loginButton = document.getElementById("loginButton");
 const refreshButton = document.getElementById("refreshButton");
 const clearHistoryButton = document.getElementById("clearHistoryButton");
 
@@ -13,17 +11,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   await refreshState();
 });
 
-loginButton.addEventListener("click", async () => {
-  setBusy(true);
-  const response = await sendMessage({ type: "LOGIN_GMAIL" });
-  setBusy(false);
-  showError(response?.error);
-  await refreshState();
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.action === "accountsUpdated") {
+    refreshState();
+  }
 });
 
 refreshButton.addEventListener("click", async () => {
   setBusy(true);
-  const response = await sendMessage({ type: "CHECK_NOW", manual: true });
+  const response = await sendMessage({ action: "refresh", manual: true });
   setBusy(false);
   showError(response?.error);
   await refreshState();
@@ -31,7 +27,7 @@ refreshButton.addEventListener("click", async () => {
 
 clearHistoryButton.addEventListener("click", async () => {
   setBusy(true);
-  const response = await sendMessage({ type: "CLEAR_HISTORY" });
+  const response = await sendMessage({ action: "clearHistory" });
   setBusy(false);
   showError(response?.error);
   await refreshState();
@@ -43,31 +39,29 @@ accountSelectorEl.addEventListener("change", async () => {
   }
 
   setBusy(true);
-  const response = await sendMessage({ type: "SWITCH_ACCOUNT", email: accountSelectorEl.value });
+  const response = await sendMessage({ action: "switchAccount", email: accountSelectorEl.value });
   setBusy(false);
   showError(response?.error);
   await refreshState();
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local" && (changes.accounts || changes.activeEmail || changes.lastError)) {
+  if (areaName === "local" && (changes.accounts || changes.activeAccount || changes.activeEmail || changes.lastError)) {
     refreshState();
   }
 });
 
 async function refreshState() {
-  const state = await sendMessage({ type: "GET_STATE" });
+  const state = await sendMessage({ action: "getAccounts" });
   const accounts = state?.accounts || [];
-  const activeEmail = state?.activeEmail || null;
+  const activeEmail = state?.activeAccount || state?.activeEmail || null;
 
   statusEl.textContent = accounts.length
     ? `${accounts.length} account${accounts.length > 1 ? "s" : ""} connected${activeEmail ? ` - Active: ${activeEmail}` : ""}`
     : "No account connected";
 
-  accountCountEl.textContent = `${accounts.length}/4`;
-  accountCountEl.classList.toggle("status--online", accounts.length > 0);
-  accountCountEl.classList.toggle("status--offline", accounts.length === 0);
-  loginButton.disabled = accounts.length >= 4;
+  refreshButton.hidden = accounts.length === 0;
+  clearHistoryButton.hidden = accounts.length === 0;
 
   renderAccountSelector(accounts, activeEmail);
   renderAccounts(accounts, activeEmail);
@@ -112,24 +106,12 @@ function renderAccounts(accounts, activeEmail) {
     const isActive = account.email === activeEmail;
     node.classList.toggle("account-card--active", isActive);
     node.querySelector(".account-card__active").hidden = !isActive;
-    node.querySelector(".account-card__code strong").textContent = account.latestOtp || account.lastCode || "None";
-    node.querySelector(".account-card__meta").textContent = account.lastDetectedAt
-      ? `Detected ${new Date(account.lastDetectedAt).toLocaleString()}`
-      : "No valid OTP detected yet";
-
-    const switchButton = node.querySelector(".account-card__switch");
-    switchButton.disabled = isActive;
-    switchButton.addEventListener("click", async () => {
-      setBusy(true);
-      const response = await sendMessage({ type: "SWITCH_ACCOUNT", email: account.email });
-      setBusy(false);
-      showError(response?.error);
-      await refreshState();
-    });
+    node.querySelector(".account-card__code strong").textContent = account.lastOTP || account.latestOtp || account.lastCode || "None";
+    node.querySelector(".account-card__meta").textContent = account.lastOTP || account.latestOtp || account.lastCode || "No valid OTP detected yet";
 
     node.querySelector(".account-card__logout").addEventListener("click", async () => {
       setBusy(true);
-      const response = await sendMessage({ type: "LOGOUT_GMAIL", email: account.email });
+      const response = await sendMessage({ action: "disconnect", email: account.email });
       setBusy(false);
       showError(response?.error);
       await refreshState();
@@ -155,7 +137,7 @@ function sendMessage(message) {
 function setBusy(isBusy) {
   accountSelectorEl.disabled = isBusy || accountSelectorEl.options.length === 0;
 
-  for (const button of [loginButton, refreshButton, clearHistoryButton, ...accountsListEl.querySelectorAll("button")]) {
+  for (const button of [refreshButton, clearHistoryButton, ...accountsListEl.querySelectorAll("button")]) {
     button.disabled = isBusy;
   }
 }

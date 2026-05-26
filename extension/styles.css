@@ -3,23 +3,24 @@
 }
 
 body {
-  width: 380px;
+  width: 320px;
+  min-width: 320px;
   margin: 0;
-  background: #f6f8fb;
-  color: #172033;
-  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #202124;
+  font-family: "Google Sans", Roboto, Arial, sans-serif;
+  font-size: 14px;
 }
 
 .popup {
+  display: grid;
+  gap: 16px;
   padding: 16px;
 }
 
 .popup__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+  display: grid;
+  gap: 4px;
 }
 
 h1,
@@ -29,54 +30,36 @@ p {
 }
 
 h1 {
-  font-size: 18px;
-  line-height: 1.2;
+  color: #202124;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 h2 {
-  margin-bottom: 8px;
-  font-size: 13px;
+  color: #202124;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
 .status-text {
-  margin-top: 4px;
-  color: #5f6b7a;
+  color: #5f6368;
   font-size: 12px;
-}
-
-.status {
-  padding: 5px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.status--online {
-  background: #e6f4ea;
-  color: #137333;
-}
-
-.status--offline {
-  background: #fce8e6;
-  color: #c5221f;
+  line-height: 1.4;
 }
 
 .actions {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 10px;
 }
 
 button {
   width: 100%;
-  min-height: 38px;
+  min-height: 40px;
   border: 0;
-  border-radius: 7px;
-  background: #1a73e8;
-  color: #ffffff;
+  border-radius: 8px;
   cursor: pointer;
   font: inherit;
   font-weight: 700;
@@ -88,50 +71,53 @@ button:disabled {
 }
 
 .button-ghost {
-  border: 1px solid #c8d0dc;
+  border: 1px solid #dadce0;
   background: #ffffff;
-  color: #172033;
+  color: #1a73e8;
+}
+
+#clearHistoryButton {
+  border-color: #eef0f3;
+  background: #f8fafd;
+  color: #5f6368;
 }
 
 .accounts-section {
   display: grid;
-  gap: 8px;
+  gap: 16px;
 }
 
 .account-selector {
   display: grid;
-  gap: 5px;
-  color: #667386;
+  gap: 6px;
+  color: #5f6368;
   font-size: 12px;
 }
 
 .account-selector select {
   width: 100%;
-  min-height: 36px;
-  border: 1px solid #c8d0dc;
-  border-radius: 7px;
+  min-height: 38px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
   background: #ffffff;
-  color: #172033;
+  color: #202124;
   font: inherit;
+  padding: 0 10px;
 }
 
 .accounts-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .account-card {
   display: grid;
-  gap: 10px;
+  gap: 14px;
   padding: 12px;
-  border: 1px solid #dfe5ef;
-  border-radius: 8px;
+  border: 1px solid #dadce0;
+  border-radius: 12px;
   background: #ffffff;
-}
-
-.account-card--active {
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 1px rgba(26, 115, 232, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .account-card__top {
@@ -144,22 +130,16 @@ button:disabled {
 .account-card__email {
   min-width: 0;
   overflow: hidden;
-  font-size: 13px;
+  color: #202124;
+  font-size: 15px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.account-card__logout {
-  width: auto;
-  min-height: 30px;
-  padding: 0 10px;
-  background: #3c4043;
-  font-size: 12px;
-}
-
 .account-card__active {
   justify-self: end;
-  padding: 3px 7px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: #e6f4ea;
   color: #137333;
@@ -169,46 +149,47 @@ button:disabled {
 
 .account-card__actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
 }
 
-.account-card__switch,
 .account-card__logout {
-  min-height: 32px;
-  font-size: 12px;
+  min-height: 38px;
+  border-radius: 8px;
+  background: #202124;
+  color: #ffffff;
+  font-size: 13px;
 }
 
 .account-card__code {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  gap: 6px;
+  text-align: center;
 }
 
 .account-card__code span {
-  color: #667386;
+  color: #5f6368;
   font-size: 12px;
 }
 
 .account-card__code strong {
   overflow-wrap: anywhere;
-  font-size: 22px;
+  color: #1a73e8;
+  font-size: 28px;
+  font-weight: 800;
   letter-spacing: 0;
 }
 
 .account-card__meta,
 .empty-state {
-  color: #687386;
+  color: #5f6368;
   font-size: 12px;
   line-height: 1.4;
+  text-align: center;
 }
 
 .error {
-  margin-top: 12px;
   padding: 10px;
-  border-radius: 7px;
-  background: #fff4e5;
+  border-radius: 8px;
+  background: #fef7e0;
   color: #8a4b00;
   font-size: 12px;
   line-height: 1.4;

@@ -1,10 +1,11 @@
 const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
-const AUTO_SCAN_MINUTES = 2;
+const USERINFO_EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
+const AUTO_SCAN_MINUTES = 5;
 const FIRST_SCAN_MINUTES = 30;
-const MANUAL_SCAN_MINUTES = 30;
+const MANUAL_SCAN_MINUTES = 5;
 const AUTO_MAX_RESULTS = 5;
 const MANUAL_MAX_RESULTS = 10;
-const POLL_INTERVAL_MS = 3 * 1000;
+const POLL_INTERVAL_MS = 30 * 1000;
 const MAX_ACCOUNTS = 4;
 const MAX_IGNORED_MESSAGES = 100;
 const EXTENSION_NAME = "GMAIL OTP BANNER";
@@ -16,11 +17,13 @@ let lastNotificationKey = null;
 let lastNotificationAt = 0;
 
 chrome.runtime.onInstalled.addListener(async () => {
-  const stored = await chrome.storage.local.get(["accounts", "activeEmail", "lastError"]);
+  const stored = await chrome.storage.local.get(["accounts", "activeAccount", "activeEmail", "lastError"]);
   const accounts = normalizeAccounts(stored.accounts);
+  const activeAccount = getValidActiveEmail(accounts, stored.activeAccount || stored.activeEmail);
   await chrome.storage.local.set({
     accounts,
-    activeEmail: getValidActiveEmail(accounts, stored.activeEmail),
+    activeAccount,
+    activeEmail: activeAccount,
     lastError: stored.lastError || null
   });
   startPolling();
@@ -41,22 +44,22 @@ chrome.tabs.onActivated.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type === "LOGIN_GMAIL") {
+  if (message?.action === "addAccount" || message?.type === "LOGIN_GMAIL") {
     connectAccount().then(sendResponse);
     return true;
   }
 
-  if (message?.type === "LOGOUT_GMAIL") {
+  if (message?.action === "disconnect" || message?.action === "disconnectAccount" || message?.type === "LOGOUT_GMAIL") {
     disconnectAccount(message.email).then(sendResponse);
     return true;
   }
 
-  if (message?.type === "SWITCH_ACCOUNT") {
+  if (message?.action === "switchAccount" || message?.type === "SWITCH_ACCOUNT") {
     switchAccount(message.email).then(sendResponse);
     return true;
   }
 
-  if (message?.type === "CHECK_NOW") {
+  if (message?.action === "refresh" || message?.type === "CHECK_NOW") {
     scanAllAccounts({
       minutes: message.manual ? MANUAL_SCAN_MINUTES : AUTO_SCAN_MINUTES,
       maxResults: message.manual ? MANUAL_MAX_RESULTS : AUTO_MAX_RESULTS,
@@ -70,12 +73,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "GET_STATE") {
+  if (message?.action === "getAccounts" || message?.type === "GET_STATE") {
     getState().then(sendResponse);
     return true;
   }
 
-  if (message?.type === "CLEAR_HISTORY") {
+  if (message?.action === "clearHistory" || message?.type === "CLEAR_HISTORY") {
     clearHistory().then(sendResponse);
     return true;
   }
@@ -115,6 +118,8 @@ async function connectAccount() {
         latestOtp: null,
         latestMessageId: null,
         lastCode: null,
+        lastOTP: null,
+        lastOTPTime: null,
         lastMessageId: null,
         lastDetectedAt: null
       };
@@ -127,27 +132,37 @@ async function connectAccount() {
     console.log("[Auth] account connected", { email });
     return { ok: true, email };
   } catch (error) {
+    if (error?.message === "USER_CANCELLED") {
+      console.log("[Auth] user cancelled account chooser");
+      return { ok: false, cancelled: true };
+    }
+
     return setError(normalizeError(error));
   }
 }
 
 async function disconnectAccount(email) {
   const { accounts, activeEmail } = await loadAccountState();
-  const account = accounts.find((item) => item.email === email);
+  const targetEmail = email || activeEmail;
+  const account = accounts.find((item) => item.email === targetEmail);
 
   if (account?.token) {
     await removeCachedToken(account.token);
+    await revokeToken(account.token);
   }
 
-  if (currentBannerItem?.email === email) {
+  await clearAllCachedAuthTokens();
+
+  if (currentBannerItem?.email === targetEmail) {
     currentBannerItem = null;
     await clearActiveBanner();
   }
 
-  const remainingAccounts = accounts.filter((account) => account.email !== email);
-  const nextActiveEmail = activeEmail === email ? remainingAccounts[0]?.email || null : activeEmail;
+  const remainingAccounts = accounts.filter((account) => account.email !== targetEmail);
+  const nextActiveEmail = activeEmail === targetEmail ? remainingAccounts[0]?.email || null : activeEmail;
   await saveAccountState(remainingAccounts, nextActiveEmail);
   await chrome.storage.local.set({ lastError: null });
+  chrome.runtime.sendMessage({ action: "accountsUpdated" }).catch(() => {});
   return { ok: true };
 }
 
@@ -159,7 +174,13 @@ async function switchAccount(email) {
     return setError("Account not found.");
   }
 
-  await chrome.storage.local.set({ activeEmail: account.email, lastError: null });
+  await chrome.storage.local.set({
+    activeAccount: account.email,
+    activeEmail: account.email,
+    lastError: null
+  });
+
+  await scanAllAccounts({ minutes: AUTO_SCAN_MINUTES, maxResults: AUTO_MAX_RESULTS, source: "auto" });
   return { ok: true, email: account.email };
 }
 
@@ -168,6 +189,8 @@ async function clearHistory() {
   const cleared = accounts.map((account) => ({
     ...account,
     lastCode: null,
+    lastOTP: null,
+    lastOTPTime: null,
     latestOtp: null,
     lastMessageId: null,
     latestMessageId: null,
@@ -185,15 +208,17 @@ async function clearHistory() {
 }
 
 async function getState() {
-  const stored = await chrome.storage.local.get(["accounts", "activeEmail", "lastError"]);
+  const stored = await chrome.storage.local.get(["accounts", "activeAccount", "activeEmail", "lastError"]);
   const normalizedAccounts = normalizeAccounts(stored.accounts);
-  const activeEmail = getValidActiveEmail(normalizedAccounts, stored.activeEmail);
+  const activeEmail = getValidActiveEmail(normalizedAccounts, stored.activeAccount || stored.activeEmail);
   const accounts = normalizeAccounts(stored.accounts).map((account) => ({
     email: account.email,
     isActive: account.email === activeEmail,
     connectedAt: account.connectedAt,
     lastCode: account.lastCode || null,
-    latestOtp: account.latestOtp || account.lastCode || null,
+    lastOTP: account.lastOTP || account.latestOtp || account.lastCode || null,
+    lastOTPTime: account.lastOTPTime || account.lastDetectedAt || null,
+    latestOtp: account.latestOtp || account.lastOTP || account.lastCode || null,
     lastMessageId: account.lastMessageId || null,
     latestMessageId: account.latestMessageId || account.lastMessageId || null,
     lastDetectedAt: account.lastDetectedAt || null,
@@ -203,6 +228,7 @@ async function getState() {
   return {
     ok: true,
     accounts,
+    activeAccount: activeEmail,
     activeEmail,
     isConnected: accounts.length > 0,
     currentBanner: currentBannerItem,
@@ -341,6 +367,8 @@ async function scanAccount(account, { minutes, maxResults, source }) {
       return {
         ...nextAccount,
         lastCode: result.code,
+        lastOTP: result.code,
+        lastOTPTime: Date.now(),
         latestOtp: result.code,
         lastMessageId: message.id,
         latestMessageId: message.id,
@@ -622,7 +650,7 @@ async function getMessageMetadata(token, messageId) {
 }
 
 function buildGmailQuery(minutes) {
-  return `newer_than:${minutes}m (verification OR verify OR OTP OR code OR security OR authentication OR confirmation OR passcode)`;
+  return `is:unread newer_than:${minutes}m`;
 }
 
 function logScanStarted(source) {
@@ -766,22 +794,9 @@ function safeNotify({ key, title, message }) {
   });
 }
 
-function getAuthToken({ interactive }) {
-  return new Promise((resolve, reject) => {
-    chrome.identity.getAuthToken({ interactive }, (token) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-
-      resolve(token || null);
-    });
-  });
-}
-
 async function getTokenAndEmailForAccountChooser() {
   await clearAllCachedAuthTokens();
-  const token = await launchOAuthAccountChooser();
+  const token = await getAuthToken({ interactive: true });
 
   try {
     return {
@@ -790,8 +805,9 @@ async function getTokenAndEmailForAccountChooser() {
     };
   } catch (error) {
     await removeCachedToken(token);
+    await revokeToken(token);
     await clearAllCachedAuthTokens();
-    const retryToken = await launchOAuthAccountChooser();
+    const retryToken = await getAuthToken({ interactive: true });
 
     return {
       token: retryToken,
@@ -800,44 +816,25 @@ async function getTokenAndEmailForAccountChooser() {
   }
 }
 
-function launchOAuthAccountChooser() {
+function getAuthToken({ interactive }) {
   return new Promise((resolve, reject) => {
-    const clientId = chrome.runtime.getManifest().oauth2?.client_id;
-
-    if (!clientId || clientId === "YOUR_CHROME_EXTENSION_OAUTH_CLIENT_ID") {
-      reject(new Error("Missing OAuth Client ID in manifest.json."));
-      return;
-    }
-
-    const redirectUri = chrome.identity.getRedirectURL();
-    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    authUrl.searchParams.set("client_id", clientId);
-    authUrl.searchParams.set("redirect_uri", redirectUri);
-    authUrl.searchParams.set("response_type", "token");
-    authUrl.searchParams.set("scope", GMAIL_SCOPE);
-    authUrl.searchParams.set("prompt", "select_account");
-    authUrl.searchParams.set("include_granted_scopes", "true");
-
-    chrome.identity.launchWebAuthFlow({
-      url: authUrl.toString(),
-      interactive: true
-    }, (responseUrl) => {
+    chrome.identity.getAuthToken({ interactive }, (token) => {
       if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
+        const msg = chrome.runtime.lastError.message || "";
+        console.warn("[Auth] getAuthToken failed:", msg);
 
-      if (!responseUrl) {
-        reject(new Error("Google sign-in was cancelled."));
-        return;
-      }
+        if (
+          msg.includes("user did not approve") ||
+          msg.includes("canceled") ||
+          msg.includes("cancelled") ||
+          msg.includes("not approve")
+        ) {
+          reject(new Error("USER_CANCELLED"));
+          return;
+        }
 
-      let token = null;
-
-      try {
-        token = parseAccessTokenFromRedirect(responseUrl);
-      } catch (error) {
-        reject(error);
+        console.error("[Auth] getAuthToken error:", chrome.runtime.lastError?.message || chrome.runtime.lastError);
+        reject(new Error(msg));
         return;
       }
 
@@ -851,31 +848,20 @@ function launchOAuthAccountChooser() {
   });
 }
 
-function parseAccessTokenFromRedirect(responseUrl) {
-  const url = new URL(responseUrl);
-  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-  const queryParams = url.searchParams;
-  const error = hashParams.get("error") || queryParams.get("error");
-  const errorDescription = hashParams.get("error_description") || queryParams.get("error_description");
-
-  if (error) {
-    throw new Error(errorDescription ? `${error}: ${errorDescription}` : error);
-  }
-
-  return hashParams.get("access_token") || queryParams.get("access_token");
-}
-
 async function refreshAccountToken(token, expectedEmail) {
   if (token) {
     await removeCachedToken(token);
+    await revokeToken(token);
   }
 
   try {
-    const refreshedToken = await getAuthToken({ interactive: false });
+    await clearAllCachedAuthTokens();
+    const refreshedToken = await getAuthToken({ interactive: true });
     const email = await getAccountEmail(refreshedToken);
 
     if (email !== expectedEmail) {
       await removeCachedToken(refreshedToken);
+      await revokeToken(refreshedToken);
       return null;
     }
 
@@ -926,6 +912,20 @@ async function removeCachedToken(token) {
   }
 }
 
+async function revokeToken(token) {
+  if (!token) {
+    return;
+  }
+
+  try {
+    await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
+      method: "POST"
+    });
+  } catch (_error) {
+    // Revocation can fail offline; local and Chrome caches are still cleared.
+  }
+}
+
 function clearAllCachedAuthTokens() {
   return new Promise((resolve) => {
     if (!chrome.identity.clearAllCachedAuthTokens) {
@@ -955,12 +955,12 @@ async function loadAccounts() {
 }
 
 async function loadAccountState() {
-  const stored = await chrome.storage.local.get(["accounts", "activeEmail"]);
+  const stored = await chrome.storage.local.get(["accounts", "activeAccount", "activeEmail"]);
   const accounts = normalizeAccounts(stored.accounts);
 
   return {
     accounts,
-    activeEmail: getValidActiveEmail(accounts, stored.activeEmail)
+    activeEmail: getValidActiveEmail(accounts, stored.activeAccount || stored.activeEmail)
   };
 }
 
@@ -970,9 +970,11 @@ async function saveAccounts(accounts) {
 
 async function saveAccountState(accounts, activeEmail) {
   const normalizedAccounts = normalizeAccounts(accounts);
+  const activeAccount = getValidActiveEmail(normalizedAccounts, activeEmail);
   await chrome.storage.local.set({
     accounts: normalizedAccounts,
-    activeEmail: getValidActiveEmail(normalizedAccounts, activeEmail)
+    activeAccount,
+    activeEmail: activeAccount
   });
 }
 
@@ -988,6 +990,8 @@ function createAccount(email, token, connectedAt, baseline) {
     connectedAt,
     baselineInternalDate: baseline.baselineInternalDate,
     lastCode: null,
+    lastOTP: null,
+    lastOTPTime: null,
     latestOtp: null,
     lastMessageId: null,
     latestMessageId: null,
@@ -1009,7 +1013,9 @@ function normalizeAccount(account) {
     connectedAt: normalizeTimestamp(account.connectedAt),
     baselineInternalDate: account.baselineInternalDate || normalizeTimestamp(account.connectedAt),
     lastCode: account.lastCode || null,
-    latestOtp: account.latestOtp || account.lastCode || null,
+    lastOTP: account.lastOTP || account.latestOtp || account.lastCode || null,
+    lastOTPTime: account.lastOTPTime || null,
+    latestOtp: account.latestOtp || account.lastOTP || account.lastCode || null,
     lastMessageId: account.lastMessageId || null,
     latestMessageId: account.latestMessageId || account.lastMessageId || null,
     lastProcessedMessageId: account.lastProcessedMessageId || null,
@@ -1076,14 +1082,6 @@ async function setError(message) {
 
 function normalizeError(error) {
   const message = error?.message || String(error || "Unknown error.");
-
-  if (message.toLowerCase().includes("invalid_request")) {
-    return "OAuth configuration error. Please check the extension OAuth flow.";
-  }
-
-  if (message.toLowerCase().includes("redirect_uri_mismatch")) {
-    return "OAuth redirect mismatch. Make sure the Google Cloud OAuth Client uses the current Chrome Extension ID.";
-  }
 
   return message;
 }
