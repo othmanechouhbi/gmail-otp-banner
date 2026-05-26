@@ -17,13 +17,17 @@
       </header>
 
       <section class="actions">
-        <button id="loginButton" type="button">Connect an account</button>
+        <button id="loginButton" type="button">Add Account</button>
         <button id="refreshButton" type="button" class="button-ghost">Refresh</button>
         <button id="clearHistoryButton" type="button" class="button-ghost">Clear history</button>
       </section>
 
       <section class="accounts-section">
         <h2>Connected accounts</h2>
+        <label class="account-selector">
+          <span>Active account</span>
+          <select id="accountSelector"></select>
+        </label>
         <div id="accountsList" class="accounts-list"></div>
       </section>
 
@@ -34,6 +38,10 @@
       <article class="account-card">
         <div class="account-card__top">
           <strong class="account-card__email"></strong>
+          <span class="account-card__active">Active</span>
+        </div>
+        <div class="account-card__actions">
+          <button class="account-card__switch button-ghost" type="button">Switch</button>
           <button class="account-card__logout" type="button">Disconnect</button>
         </div>
         <div class="account-card__code">

@@ -16,9 +16,11 @@ let lastNotificationKey = null;
 let lastNotificationAt = 0;
 
 chrome.runtime.onInstalled.addListener(async () => {
-  const stored = await chrome.storage.local.get(["accounts", "lastError"]);
+  const stored = await chrome.storage.local.get(["accounts", "activeEmail", "lastError"]);
+  const accounts = normalizeAccounts(stored.accounts);
   await chrome.storage.local.set({
-    accounts: normalizeAccounts(stored.accounts),
+    accounts,
+    activeEmail: getValidActiveEmail(accounts, stored.activeEmail),
     lastError: stored.lastError || null
   });
   startPolling();
@@ -46,6 +48,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "LOGOUT_GMAIL") {
     disconnectAccount(message.email).then(sendResponse);
+    return true;
+  }
+
+  if (message?.type === "SWITCH_ACCOUNT") {
+    switchAccount(message.email).then(sendResponse);
     return true;
   }
 
@@ -85,21 +92,14 @@ startPolling();
 
 async function connectAccount() {
   try {
-    const accounts = await loadAccounts();
+    const { accounts } = await loadAccountState();
 
-    if (accounts.length >= MAX_ACCOUNTS) {
-      return setError("Maximum 4 accounts allowed.");
-    }
-
-    let { email, token } = await getTokenAndEmailWithRetry();
+    const { email, token } = await getTokenAndEmailForAccountChooser();
     let existingIndex = accounts.findIndex((account) => account.email === email);
 
-    if (existingIndex >= 0 && accounts.length < MAX_ACCOUNTS) {
+    if (existingIndex < 0 && accounts.length >= MAX_ACCOUNTS) {
       await removeCachedToken(token);
-      const retry = await getTokenAndEmailWithRetry();
-      email = retry.email;
-      token = retry.token;
-      existingIndex = accounts.findIndex((account) => account.email === email);
+      return setError("Maximum 4 accounts allowed.");
     }
 
     const connectedAt = Date.now();
@@ -122,7 +122,7 @@ async function connectAccount() {
       accounts.push(createAccount(email, token, connectedAt, baseline));
     }
 
-    await saveAccounts(accounts);
+    await saveAccountState(accounts, email);
     await chrome.storage.local.set({ lastError: null });
     console.log("[Auth] account connected", { email });
     return { ok: true, email };
@@ -132,7 +132,7 @@ async function connectAccount() {
 }
 
 async function disconnectAccount(email) {
-  const accounts = await loadAccounts();
+  const { accounts, activeEmail } = await loadAccountState();
   const account = accounts.find((item) => item.email === email);
 
   if (account?.token) {
@@ -144,13 +144,27 @@ async function disconnectAccount(email) {
     await clearActiveBanner();
   }
 
-  await saveAccounts(accounts.filter((account) => account.email !== email));
+  const remainingAccounts = accounts.filter((account) => account.email !== email);
+  const nextActiveEmail = activeEmail === email ? remainingAccounts[0]?.email || null : activeEmail;
+  await saveAccountState(remainingAccounts, nextActiveEmail);
   await chrome.storage.local.set({ lastError: null });
   return { ok: true };
 }
 
+async function switchAccount(email) {
+  const { accounts } = await loadAccountState();
+  const account = accounts.find((item) => item.email === email);
+
+  if (!account) {
+    return setError("Account not found.");
+  }
+
+  await chrome.storage.local.set({ activeEmail: account.email, lastError: null });
+  return { ok: true, email: account.email };
+}
+
 async function clearHistory() {
-  const accounts = await loadAccounts();
+  const { accounts, activeEmail } = await loadAccountState();
   const cleared = accounts.map((account) => ({
     ...account,
     lastCode: null,
@@ -165,15 +179,18 @@ async function clearHistory() {
 
   currentBannerItem = null;
   await clearActiveBanner();
-  await saveAccounts(cleared);
+  await saveAccountState(cleared, activeEmail);
   await chrome.storage.local.set({ lastError: null });
   return { ok: true };
 }
 
 async function getState() {
-  const stored = await chrome.storage.local.get(["accounts", "lastError"]);
+  const stored = await chrome.storage.local.get(["accounts", "activeEmail", "lastError"]);
+  const normalizedAccounts = normalizeAccounts(stored.accounts);
+  const activeEmail = getValidActiveEmail(normalizedAccounts, stored.activeEmail);
   const accounts = normalizeAccounts(stored.accounts).map((account) => ({
     email: account.email,
+    isActive: account.email === activeEmail,
     connectedAt: account.connectedAt,
     lastCode: account.lastCode || null,
     latestOtp: account.latestOtp || account.lastCode || null,
@@ -186,6 +203,7 @@ async function getState() {
   return {
     ok: true,
     accounts,
+    activeEmail,
     isConnected: accounts.length > 0,
     currentBanner: currentBannerItem,
     lastError: stored.lastError || null
@@ -758,8 +776,9 @@ function getAuthToken({ interactive }) {
   });
 }
 
-async function getTokenAndEmailWithRetry() {
-  const token = await getAuthToken({ interactive: true });
+async function getTokenAndEmailForAccountChooser() {
+  await clearAllCachedAuthTokens();
+  const token = await launchOAuthAccountChooser({ requestOfflineAccess: true });
 
   try {
     return {
@@ -768,13 +787,100 @@ async function getTokenAndEmailWithRetry() {
     };
   } catch (error) {
     await removeCachedToken(token);
-    const retryToken = await getAuthToken({ interactive: true });
+    await clearAllCachedAuthTokens();
+    const retryToken = await launchOAuthAccountChooser({ requestOfflineAccess: true });
 
     return {
       token: retryToken,
       email: await getAccountEmail(retryToken)
     };
   }
+}
+
+async function launchOAuthAccountChooser({ requestOfflineAccess }) {
+  try {
+    return await launchOAuthAccountChooserOnce({ requestOfflineAccess });
+  } catch (error) {
+    if (requestOfflineAccess && isOfflineAccessRejected(error)) {
+      return launchOAuthAccountChooserOnce({ requestOfflineAccess: false });
+    }
+
+    throw error;
+  }
+}
+
+function launchOAuthAccountChooserOnce({ requestOfflineAccess }) {
+  return new Promise((resolve, reject) => {
+    const clientId = chrome.runtime.getManifest().oauth2?.client_id;
+
+    if (!clientId || clientId === "YOUR_CHROME_EXTENSION_OAUTH_CLIENT_ID") {
+      reject(new Error("Missing OAuth Client ID in manifest.json."));
+      return;
+    }
+
+    const redirectUri = chrome.identity.getRedirectURL("oauth2");
+    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("response_type", "token");
+    authUrl.searchParams.set("scope", GMAIL_SCOPE);
+    authUrl.searchParams.set("prompt", "select_account");
+    authUrl.searchParams.set("include_granted_scopes", "true");
+
+    if (requestOfflineAccess) {
+      authUrl.searchParams.set("access_type", "offline");
+    }
+
+    chrome.identity.launchWebAuthFlow({
+      url: authUrl.toString(),
+      interactive: true
+    }, (responseUrl) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      if (!responseUrl) {
+        reject(new Error("Google sign-in was cancelled."));
+        return;
+      }
+
+      let token = null;
+
+      try {
+        token = parseAccessTokenFromRedirect(responseUrl);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+
+      if (!token) {
+        reject(new Error("Google did not return an access token."));
+        return;
+      }
+
+      resolve(token);
+    });
+  });
+}
+
+function parseAccessTokenFromRedirect(responseUrl) {
+  const url = new URL(responseUrl);
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+  const queryParams = url.searchParams;
+  const error = hashParams.get("error") || queryParams.get("error");
+  const errorDescription = hashParams.get("error_description") || queryParams.get("error_description");
+
+  if (error) {
+    throw new Error(errorDescription ? `${error}: ${errorDescription}` : error);
+  }
+
+  return hashParams.get("access_token") || queryParams.get("access_token");
+}
+
+function isOfflineAccessRejected(error) {
+  const message = normalizeError(error).toLowerCase();
+  return message.includes("access_type") && message.includes("offline");
 }
 
 async function refreshAccountToken(token, expectedEmail) {
@@ -838,6 +944,19 @@ async function removeCachedToken(token) {
   }
 }
 
+function clearAllCachedAuthTokens() {
+  return new Promise((resolve) => {
+    if (!chrome.identity.clearAllCachedAuthTokens) {
+      resolve();
+      return;
+    }
+
+    chrome.identity.clearAllCachedAuthTokens(() => {
+      resolve();
+    });
+  });
+}
+
 function createHttpError(message, response) {
   const error = new Error(`${message} (${response.status}).`);
   error.status = response.status;
@@ -853,8 +972,26 @@ async function loadAccounts() {
   return normalizeAccounts(stored.accounts);
 }
 
+async function loadAccountState() {
+  const stored = await chrome.storage.local.get(["accounts", "activeEmail"]);
+  const accounts = normalizeAccounts(stored.accounts);
+
+  return {
+    accounts,
+    activeEmail: getValidActiveEmail(accounts, stored.activeEmail)
+  };
+}
+
 async function saveAccounts(accounts) {
   await chrome.storage.local.set({ accounts: normalizeAccounts(accounts) });
+}
+
+async function saveAccountState(accounts, activeEmail) {
+  const normalizedAccounts = normalizeAccounts(accounts);
+  await chrome.storage.local.set({
+    accounts: normalizedAccounts,
+    activeEmail: getValidActiveEmail(normalizedAccounts, activeEmail)
+  });
 }
 
 async function updateAccount(updatedAccount) {
@@ -898,6 +1035,14 @@ function normalizeAccount(account) {
     processedMessageIds: limitList(account.processedMessageIds),
     ignoredMessageIds: limitList(account.ignoredMessageIds)
   };
+}
+
+function getValidActiveEmail(accounts, activeEmail) {
+  if (!accounts.length) {
+    return null;
+  }
+
+  return accounts.some((account) => account.email === activeEmail) ? activeEmail : accounts[0].email;
 }
 
 function pushLimited(list, value) {

@@ -98,6 +98,23 @@ button:disabled {
   gap: 8px;
 }
 
+.account-selector {
+  display: grid;
+  gap: 5px;
+  color: #667386;
+  font-size: 12px;
+}
+
+.account-selector select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #c8d0dc;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+}
+
 .accounts-list {
   display: grid;
   gap: 10px;
@@ -110,6 +127,11 @@ button:disabled {
   border: 1px solid #dfe5ef;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.account-card--active {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 1px rgba(26, 115, 232, 0.1);
 }
 
 .account-card__top {
@@ -132,6 +154,28 @@ button:disabled {
   min-height: 30px;
   padding: 0 10px;
   background: #3c4043;
+  font-size: 12px;
+}
+
+.account-card__active {
+  justify-self: end;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #e6f4ea;
+  color: #137333;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.account-card__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.account-card__switch,
+.account-card__logout {
+  min-height: 32px;
   font-size: 12px;
 }
 

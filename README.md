@@ -182,6 +182,36 @@ If you remove the extension and load it again, Chrome may generate a different E
 
 To avoid this, keep the same extension loaded in Chrome and use **Reload** from `chrome://extensions/` after editing files instead of removing and loading the extension again.
 
+## Multiple Accounts
+
+Gmail OTP Banner supports multiple connected Gmail accounts.
+
+To add another Gmail account:
+
+1. Open the extension popup.
+2. Click **Add Account**.
+3. Google will show the account chooser.
+4. Select the Gmail account you want to add.
+5. Grant Gmail read-only permission.
+
+The account chooser is shown every time you intentionally add another account. This avoids silently reusing the Gmail account from the first login.
+
+To switch accounts:
+
+1. Open the extension popup.
+2. Use the **Active account** dropdown, or click **Switch** on a connected account card.
+3. The selected account becomes the active account in the popup.
+
+OTP polling still runs for every connected account. The active account controls which account is selected in the popup UI.
+
+To disconnect an account:
+
+1. Open the extension popup.
+2. Find the account in **Connected accounts**.
+3. Click **Disconnect**.
+
+Disconnecting removes that account from local extension storage and removes its cached auth token when Chrome provides one.
+
 ## Troubleshooting
 
 ### Error 400: redirect_uri_mismatch
