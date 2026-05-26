@@ -235,14 +235,17 @@ async function scanAllAccounts({ minutes, maxResults, source }) {
 
   try {
     logScanStarted(source);
-    const accounts = await loadAccounts();
+    const { accounts, activeEmail } = await loadAccountState();
+    const activeAccount = accounts.find((account) => account.email === activeEmail);
 
-    for (const account of accounts) {
-      const updatedAccount = await scanAccount(account, { minutes, maxResults, source });
+    if (!activeAccount) {
+      return { ok: true, skipped: true };
+    }
 
-      if (updatedAccount) {
-        await updateAccount(updatedAccount);
-      }
+    const updatedAccount = await scanAccount(activeAccount, { minutes, maxResults, source });
+
+    if (updatedAccount) {
+      await updateAccount(updatedAccount);
     }
 
     return { ok: true };
@@ -778,7 +781,7 @@ function getAuthToken({ interactive }) {
 
 async function getTokenAndEmailForAccountChooser() {
   await clearAllCachedAuthTokens();
-  const token = await launchOAuthAccountChooser({ requestOfflineAccess: true });
+  const token = await launchOAuthAccountChooser();
 
   try {
     return {
@@ -788,7 +791,7 @@ async function getTokenAndEmailForAccountChooser() {
   } catch (error) {
     await removeCachedToken(token);
     await clearAllCachedAuthTokens();
-    const retryToken = await launchOAuthAccountChooser({ requestOfflineAccess: true });
+    const retryToken = await launchOAuthAccountChooser();
 
     return {
       token: retryToken,
@@ -797,19 +800,7 @@ async function getTokenAndEmailForAccountChooser() {
   }
 }
 
-async function launchOAuthAccountChooser({ requestOfflineAccess }) {
-  try {
-    return await launchOAuthAccountChooserOnce({ requestOfflineAccess });
-  } catch (error) {
-    if (requestOfflineAccess && isOfflineAccessRejected(error)) {
-      return launchOAuthAccountChooserOnce({ requestOfflineAccess: false });
-    }
-
-    throw error;
-  }
-}
-
-function launchOAuthAccountChooserOnce({ requestOfflineAccess }) {
+function launchOAuthAccountChooser() {
   return new Promise((resolve, reject) => {
     const clientId = chrome.runtime.getManifest().oauth2?.client_id;
 
@@ -826,10 +817,6 @@ function launchOAuthAccountChooserOnce({ requestOfflineAccess }) {
     authUrl.searchParams.set("scope", GMAIL_SCOPE);
     authUrl.searchParams.set("prompt", "select_account");
     authUrl.searchParams.set("include_granted_scopes", "true");
-
-    if (requestOfflineAccess) {
-      authUrl.searchParams.set("access_type", "offline");
-    }
 
     chrome.identity.launchWebAuthFlow({
       url: authUrl.toString(),
@@ -876,11 +863,6 @@ function parseAccessTokenFromRedirect(responseUrl) {
   }
 
   return hashParams.get("access_token") || queryParams.get("access_token");
-}
-
-function isOfflineAccessRejected(error) {
-  const message = normalizeError(error).toLowerCase();
-  return message.includes("access_type") && message.includes("offline");
 }
 
 async function refreshAccountToken(token, expectedEmail) {
@@ -1093,5 +1075,11 @@ async function setError(message) {
 }
 
 function normalizeError(error) {
-  return error?.message || String(error || "Unknown error.");
+  const message = error?.message || String(error || "Unknown error.");
+
+  if (message.toLowerCase().includes("invalid_request")) {
+    return "OAuth configuration error. Please check the extension OAuth flow.";
+  }
+
+  return message;
 }

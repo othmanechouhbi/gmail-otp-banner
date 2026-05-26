@@ -202,7 +202,7 @@ To switch accounts:
 2. Use the **Active account** dropdown, or click **Switch** on a connected account card.
 3. The selected account becomes the active account in the popup.
 
-OTP polling still runs for every connected account. The active account controls which account is selected in the popup UI.
+OTP polling uses the currently active account. Switch accounts from the popup when you want OTP detection to run against a different connected Gmail account.
 
 To disconnect an account:
 
