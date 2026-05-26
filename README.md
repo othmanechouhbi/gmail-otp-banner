@@ -32,8 +32,7 @@ It is not available on the Chrome Web Store yet. Clone the repository from GitHu
 Users need Git installed.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/gmail-otp-banner.git
-cd gmail-otp-banner
+git clone https://github.com/othmanechouhbi/gmail-otp-banner
 ```
 
 Replace `YOUR_USERNAME` with the real GitHub username.
