@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Support - Gmail OTP Banner</title>
+    <style>
+      body { margin: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937; }
+      main { max-width: 880px; margin: 0 auto; padding: 48px 20px; }
+      h1, h2 { color: #111827; line-height: 1.2; }
+      a { color: #0f766e; }
+      code { background: #f3f4f6; padding: 2px 5px; border-radius: 4px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="index.html">Back to home</a></p>
+      <h1>Support</h1>
+      <p>Gmail OTP Banner is currently shared as an open-source local installation project. It is not available on the Chrome Web Store yet.</p>
+      <p>For help, use the GitHub repository issues or follow the setup tutorial when it becomes available: <a href="#">YouTube tutorial link coming soon</a>.</p>
+
+      <h2>Setup Checklist</h2>
+      <ol>
+        <li>Download or clone the repository.</li>
+        <li>Open <code>chrome://extensions/</code>.</li>
+        <li>Enable Developer Mode.</li>
+        <li>Click Load unpacked and select the <code>extension</code> folder.</li>
+        <li>Copy the generated Chrome Extension ID.</li>
+        <li>Create a Google Cloud project.</li>
+        <li>Enable Gmail API.</li>
+        <li>Configure the OAuth consent screen.</li>
+        <li>Add yourself as a test user.</li>
+        <li>Create an OAuth Client ID of type Chrome Extension.</li>
+        <li>Paste the Chrome Extension ID.</li>
+        <li>Paste the OAuth Client ID in <code>manifest.json</code>.</li>
+        <li>Reload the extension and click Connect an account.</li>
+      </ol>
+
+      <h2>Common Errors</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Error</th>
+            <th>Fix</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Error 403: access_denied</code></td>
+            <td>Add your email as a test user.</td>
+          </tr>
+          <tr>
+            <td><code>Error 400: redirect_uri_mismatch</code></td>
+            <td>Make sure the Chrome Extension ID matches the ID in Google Cloud.</td>
+          </tr>
+          <tr>
+            <td><code>access_type offline not allowed</code></td>
+            <td>Remove <code>access_type=offline</code>.</td>
+          </tr>
+          <tr>
+            <td><code>invalid client_id</code></td>
+            <td>Check the OAuth Client ID in <code>manifest.json</code>.</td>
+          </tr>
+          <tr>
+            <td>Gmail API not enabled</td>
+            <td>Enable Gmail API in Google Cloud Console.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Extension ID Note</h2>
+      <p>The local extension ID must match the OAuth Client Chrome Extension ID. If you remove and reload the extension, the ID can change. If the ID changes, OAuth may fail with <code>redirect_uri_mismatch</code>.</p>
+      <p>Keep the same extension loaded and use Reload instead of Remove when updating local files.</p>
+    </main>
+  </body>
+</html>

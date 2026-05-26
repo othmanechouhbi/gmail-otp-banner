@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gmail OTP Banner</title>
+    <meta name="description" content="Open-source Chrome extension for detecting recent Gmail verification codes locally in the browser.">
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #1f2937;
+        background: #ffffff;
+      }
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 48px 20px;
+      }
+      h1, h2 {
+        line-height: 1.2;
+        color: #111827;
+      }
+      a {
+        color: #0f766e;
+      }
+      code {
+        background: #f3f4f6;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      .notice {
+        border-left: 4px solid #0f766e;
+        background: #ecfdf5;
+        padding: 14px 16px;
+        margin: 24px 0;
+      }
+      nav a {
+        margin-right: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="support.html">Support</a>
+      </nav>
+
+      <h1>Gmail OTP Banner</h1>
+      <p>Gmail OTP Banner is an open-source Chrome extension that connects to Gmail using Google OAuth, detects new verification codes received after connection, and displays the newest valid OTP in a small browser banner.</p>
+
+      <div class="notice">
+        <strong>Current status:</strong> Gmail OTP Banner is not available on the Chrome Web Store yet. Download the source code from GitHub and install it manually using Chrome Developer Mode.
+      </div>
+
+      <h2>What It Does</h2>
+      <ul>
+        <li>Connects to Gmail using Google OAuth.</li>
+        <li>Scans recent Gmail messages for OTP detection.</li>
+        <li>Shows the newest valid OTP in a small banner.</li>
+        <li>Runs locally in your browser.</li>
+        <li>Does not send Gmail content to external servers.</li>
+      </ul>
+
+      <h2>Manual Installation</h2>
+      <ol>
+        <li>Download or clone the repository.</li>
+        <li>Open <code>chrome://extensions/</code>.</li>
+        <li>Enable Developer Mode.</li>
+        <li>Click Load unpacked and select the <code>extension</code> folder.</li>
+        <li>Copy the generated Chrome Extension ID.</li>
+        <li>Create a Google Cloud project and enable Gmail API.</li>
+        <li>Configure the OAuth consent screen and add yourself as a test user.</li>
+        <li>Create an OAuth Client ID of type Chrome Extension.</li>
+        <li>Paste the Chrome Extension ID into Google Cloud.</li>
+        <li>Paste the OAuth Client ID into <code>extension/manifest.json</code>.</li>
+        <li>Reload the extension and click Connect an account.</li>
+      </ol>
+
+      <h2>Google Cloud Paths</h2>
+      <ul>
+        <li><code>Google Cloud Console → APIs &amp; Services → Library → Gmail API → Enable</code></li>
+        <li><code>Google Cloud Console → Google Auth Platform → Branding</code></li>
+        <li><code>Google Cloud Console → Google Auth Platform → Audience → Test users</code></li>
+        <li><code>Google Cloud Console → Google Auth Platform → Clients → Create Client → Chrome Extension</code></li>
+      </ul>
+
+      <h2>YouTube Tutorial</h2>
+      <p><a href="#">YouTube tutorial link coming soon</a></p>
+
+      <h2>Future Chrome Web Store Publication</h2>
+      <p>Chrome Web Store publication may be added in the future, but currently users must install Gmail OTP Banner manually from the source code.</p>
+    </main>
+  </body>
+</html>

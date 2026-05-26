@@ -1,11 +1,25 @@
 # Install Gmail OTP Banner
 
-## Install From Chrome Web Store
+Gmail OTP Banner is not currently available on the Chrome Web Store. Install it manually from the source code using Chrome Developer Mode.
 
-1. Open the Gmail OTP Banner listing in the Chrome Web Store.
-2. Click **Add to Chrome**.
-3. Confirm the installation.
-4. Pin Gmail OTP Banner to your Chrome toolbar if you want quick access.
+## Manual Install
+
+1. Download or clone this repository.
+2. Open `chrome://extensions/`.
+3. Enable **Developer Mode**.
+4. Click **Load unpacked**.
+5. Select the `extension` folder.
+6. Copy the generated Chrome Extension ID.
+7. Create and configure a Google Cloud project.
+8. Enable Gmail API.
+9. Configure the OAuth consent screen.
+10. Add yourself as a test user.
+11. Create an OAuth Client ID of type **Chrome Extension**.
+12. Paste the Chrome Extension ID.
+13. Copy the OAuth Client ID.
+14. Paste the OAuth Client ID into `extension/manifest.json`.
+15. Reload the extension.
+16. Click **Connect an account**.
 
 ## Connect Gmail
 
@@ -18,7 +32,7 @@ Gmail OTP Banner never asks for your Gmail password. Sign-in is handled by Googl
 
 ## Use The Extension
 
-1. Receive a new OTP, verification code, security code, or passcode email in Gmail.
+1. Receive a new OTP, verification code, security code, or passcode email in Gmail after connecting the account.
 2. Gmail OTP Banner detects the newest valid code.
 3. A floating banner appears in the top-right corner of Chrome.
 4. Click **Copy** to copy the code.
@@ -28,4 +42,5 @@ Gmail OTP Banner never asks for your Gmail password. Sign-in is handled by Googl
 
 - Codes received before you connected the account are not shown.
 - The extension reads only recent Gmail messages for OTP detection.
+- The extension does not send Gmail content to external servers.
 - The extension does not store full email bodies.
