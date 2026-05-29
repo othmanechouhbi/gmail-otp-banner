@@ -104,10 +104,11 @@ function renderAccounts(accounts, activeEmail) {
     const node = accountTemplate.content.firstElementChild.cloneNode(true);
     node.querySelector(".account-card__email").textContent = account.email;
     const isActive = account.email === activeEmail;
+    const otp = getDisplayableOtp(account);
     node.classList.toggle("account-card--active", isActive);
     node.querySelector(".account-card__active").hidden = !isActive;
-    node.querySelector(".account-card__code strong").textContent = account.lastOTP || account.latestOtp || account.lastCode || "None";
-    node.querySelector(".account-card__meta").textContent = account.lastOTP || account.latestOtp || account.lastCode || "No valid OTP detected yet";
+    node.querySelector(".account-card__code strong").textContent = otp || "None";
+    node.querySelector(".account-card__meta").textContent = otp || "No valid OTP detected yet";
 
     node.querySelector(".account-card__logout").addEventListener("click", async () => {
       setBusy(true);
@@ -145,4 +146,34 @@ function setBusy(isBusy) {
 function showError(message) {
   errorMessageEl.hidden = !message;
   errorMessageEl.textContent = message || "";
+}
+
+function getDisplayableOtp(account) {
+  for (const value of [account.lastOTP, account.latestOtp, account.lastCode]) {
+    const candidate = normalizeOtp(value);
+
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function normalizeOtp(value) {
+  const candidate = String(value || "")
+    .trim()
+    .replace(/^[^A-Z0-9]+|[^A-Z0-9]+$/gi, "")
+    .toUpperCase();
+  const compact = candidate.replace(/-/g, "");
+
+  if (!candidate || candidate.length < 4 || candidate.length > 10) {
+    return null;
+  }
+
+  if (!/^(?:\d{4,8}|[A-Z0-9]{4,10}|[A-Z0-9]{2,6}-[A-Z0-9]{2,6})$/.test(candidate)) {
+    return null;
+  }
+
+  return /\d/.test(compact) ? candidate : null;
 }

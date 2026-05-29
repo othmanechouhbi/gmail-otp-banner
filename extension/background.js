@@ -466,6 +466,10 @@ function getCandidateRejectionReason(candidate, phrase, rejectTerms, keyword) {
     return "invalid format";
   }
 
+  if (!/\d/.test(compact)) {
+    return "missing digit";
+  }
+
   if (/^\d{4}$/.test(candidate) && Number(candidate) >= 1900 && Number(candidate) <= 2099) {
     return "year";
   }
@@ -482,11 +486,11 @@ function getCandidateRejectionReason(candidate, phrase, rejectTerms, keyword) {
     return "generic or message word";
   }
 
-  if (/^[A-Z]+$/.test(candidate) && !isExplicitLettersOnlyPhrase(keyword, phrase)) {
+  if (/^[A-Z]+$/.test(compact) && !isExplicitLettersOnlyPhrase(keyword, phrase)) {
     return "letters-only without explicit phrase";
   }
 
-  if (/^[A-Z]+$/.test(candidate) && candidate.length < 6) {
+  if (/^[A-Z]+$/.test(compact) && compact.length < 6) {
     return "short letters-only word";
   }
 
@@ -1007,15 +1011,19 @@ function normalizeAccounts(accounts) {
 }
 
 function normalizeAccount(account) {
+  const lastCode = normalizeStoredOtp(account.lastCode);
+  const lastOTP = normalizeStoredOtp(account.lastOTP || account.latestOtp || account.lastCode);
+  const latestOtp = normalizeStoredOtp(account.latestOtp || account.lastOTP || account.lastCode);
+
   return {
     email: account.email,
     token: account.token || null,
     connectedAt: normalizeTimestamp(account.connectedAt),
     baselineInternalDate: account.baselineInternalDate || normalizeTimestamp(account.connectedAt),
-    lastCode: account.lastCode || null,
-    lastOTP: account.lastOTP || account.latestOtp || account.lastCode || null,
+    lastCode,
+    lastOTP,
     lastOTPTime: account.lastOTPTime || null,
-    latestOtp: account.latestOtp || account.lastOTP || account.lastCode || null,
+    latestOtp,
     lastMessageId: account.lastMessageId || null,
     latestMessageId: account.latestMessageId || account.lastMessageId || null,
     lastProcessedMessageId: account.lastProcessedMessageId || null,
@@ -1061,6 +1069,21 @@ function normalizeCandidate(value) {
     .trim()
     .replace(/^[^A-Z0-9]+|[^A-Z0-9]+$/gi, "")
     .toUpperCase();
+}
+
+function normalizeStoredOtp(value) {
+  const candidate = normalizeCandidate(value);
+  const compact = candidate.replace(/-/g, "");
+
+  if (!candidate || candidate.length < 4 || candidate.length > 10) {
+    return null;
+  }
+
+  if (!/^(?:\d{4,8}|[A-Z0-9]{4,10}|[A-Z0-9]{2,6}-[A-Z0-9]{2,6})$/.test(candidate)) {
+    return null;
+  }
+
+  return /\d/.test(compact) ? candidate : null;
 }
 
 function decodeBase64Url(value) {
